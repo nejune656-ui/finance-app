@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finance Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f0f4f8;--surface:#fff;--surface2:#f8fafc;
+  --text:#1a2332;--text2:#64748b;--text3:#94a3b8;--border:#e2e8f0;
+  --blue:#2563eb;--blue-light:#eff6ff;
+  --green:#10b981;--green-light:#ecfdf5;
+  --red:#ef4444;--red-light:#fef2f2;
+  --amber:#f59e0b;--amber-light:#fffbeb;
+  --radius:12px;--radius-sm:8px;
+  --nav-h:60px
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#0f172a;--surface:#1e293b;--surface2:#162032;
+  --text:#f1f5f9;--text2:#94a3b8;--text3:#475569;--border:#334155;
+  --blue-light:#1e3a5f;--green-light:#064e3b;--red-light:#450a0a;--amber-light:#451a03
+}}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;padding-bottom:80px}
+
+/* ---- NAV ---- */
+.nav{position:fixed;bottom:0;left:0;right:0;height:var(--nav-h);background:var(--surface);border-top:1px solid var(--border);display:flex;z-index:50}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;color:var(--text3);font-size:10px;font-weight:500;transition:color .15s;border:none;background:none;padding:0}
+.nav-item.active{color:var(--blue)}
+.nav-icon{font-size:20px;line-height:1}
+@media(min-width:768px){
+  body{padding-bottom:0;padding-left:220px}
+  .nav{top:0;bottom:0;left:0;right:auto;width:220px;height:100vh;flex-direction:column;border-top:none;border-right:1px solid var(--border);padding:20px 0;gap:4px;justify-content:flex-start}
+  .nav-item{flex:none;flex-direction:row;justify-content:flex-start;padding:10px 20px;gap:10px;font-size:13px;border-radius:var(--radius-sm);margin:0 10px;width:calc(100% - 20px)}
+  .nav-brand{padding:10px 20px 20px;font-size:16px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px}
+}
+
+/* ---- PAGES ---- */
+.page{display:none;max-width:1100px;margin:0 auto;padding:16px}
+.page.active{display:block}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.page-title{font-size:18px;font-weight:600}
+
+/* ---- BUTTONS ---- */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-sm);border:none;cursor:pointer;font-size:13px;font-weight:500;transition:all .15s}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-primary:hover{background:#1d4ed8}
+.btn-ghost{background:var(--surface);color:var(--text2);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--surface2)}
+.btn-danger-soft{background:var(--red-light);color:var(--red);border:none}
+.btn-sm{padding:5px 12px;font-size:12px}
+
+/* ---- CARDS / SUMMARY ---- */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:var(--surface);border-radius:var(--radius);padding:16px;border:1px solid var(--border)}
+.stat-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin-bottom:6px}
+.stat-val{font-size:22px;font-weight:700}
+.stat-val.green{color:var(--green)}
+.stat-val.red{color:var(--red)}
+.stat-val.blue{color:var(--blue)}
+.stat-sub{font-size:11px;color:var(--text3);margin-top:3px}
+
+/* ---- BANK OVERVIEW CARDS ---- */
+.bank-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px}
+.bank-overview{background:var(--surface);border-radius:var(--radius);padding:16px;border:1px solid var(--border);position:relative;overflow:hidden}
+.bank-overview::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--bc,var(--blue))}
+.bank-overview-name{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:2px}
+.bank-overview-num{font-size:11px;color:var(--text3);margin-bottom:10px}
+.bank-overview-bal{font-size:20px;font-weight:700;color:var(--text)}
+.bank-overview-bal.neg{color:var(--red)}
+.bank-overview-sub{display:flex;gap:12px;margin-top:8px;font-size:11px}
+.bank-overview-sub span{display:flex;align-items:center;gap:3px}
+
+/* ---- SECTION ---- */
+.section{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:16px;margin-bottom:20px}
+.section-title{font-size:13px;font-weight:600;margin-bottom:14px;color:var(--text2);text-transform:uppercase;letter-spacing:.05em}
+
+/* ---- CHART ---- */
+.chart-container{position:relative;height:260px;width:100%}
+.chart-tabs{display:flex;gap:6px;margin-bottom:12px}
+.chart-tab{padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:12px;cursor:pointer;transition:all .15s}
+.chart-tab.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.chart-legend{display:flex;gap:14px;margin-bottom:10px;font-size:12px;color:var(--text2)}
+.chart-legend span{display:flex;align-items:center;gap:5px}
+.legend-dot{width:10px;height:10px;border-radius:2px}
+
+/* ---- TABLE ---- */
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.filters input,.filters select{padding:7px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:13px;flex:1;min-width:110px}
+.filters input:focus,.filters select:focus{outline:none;border-color:var(--blue)}
+.scroll-x{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 10px;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surface2)}
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-income{background:var(--green-light);color:var(--green)}
+.badge-expense{background:var(--red-light);color:var(--red)}
+.amt-income{color:var(--green);font-weight:600;font-variant-numeric:tabular-nums}
+.amt-expense{color:var(--red);font-weight:600;font-variant-numeric:tabular-nums}
+.tag{display:inline-block;padding:2px 7px;background:var(--surface2);border-radius:20px;font-size:11px;color:var(--text2);border:1px solid var(--border);margin-top:2px}
+.empty{text-align:center;padding:40px 20px;color:var(--text3);font-size:13px}
+.action-btns{display:flex;gap:4px}
+.icon-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:transparent;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:13px;color:var(--text2);transition:all .15s}
+.icon-btn:hover{background:var(--surface2)}
+.icon-btn.del:hover{background:var(--red-light);color:var(--red);border-color:transparent}
+
+/* ---- BANK MANAGEMENT ---- */
+.bank-manage-list{display:flex;flex-direction:column;gap:10px}
+.bank-row{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden}
+.bank-row::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--bc,var(--blue))}
+.bank-dot{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;flex-shrink:0}
+.bank-info{flex:1;min-width:0}
+.bank-info-name{font-size:14px;font-weight:600}
+.bank-info-acct{font-size:12px;color:var(--text3);margin-top:1px}
+.bank-info-bal{font-size:13px;margin-top:4px}
+.bank-info-bal .lbl{color:var(--text2)}
+.bank-info-bal .num{font-weight:600}
+.bank-info-bal .num.neg{color:var(--red)}
+.bank-actions{display:flex;gap:6px;flex-shrink:0}
+
+/* ---- MODAL ---- */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+@media(min-width:600px){.overlay{align-items:center;padding:20px}}
+.modal{background:var(--surface);border-radius:var(--radius) var(--radius) 0 0;width:100%;max-width:540px;max-height:92vh;overflow-y:auto;padding:20px;animation:slideUp .2s ease}
+@media(min-width:600px){.modal{border-radius:var(--radius)}}
+@keyframes slideUp{from{transform:translateY(24px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.modal-head h3{font-size:16px;font-weight:600}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:480px){.form-grid{grid-template-columns:1fr}}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg.full{grid-column:1/-1}
+.fg label{font-size:12px;font-weight:500;color:var(--text2)}
+.fg input,.fg select,.fg textarea{padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:13px;font-family:inherit}
+.fg input:focus,.fg select:focus,.fg textarea:focus{outline:none;border-color:var(--blue)}
+.fg textarea{resize:vertical;min-height:58px}
+.type-toggle{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:14px}
+.type-btn{padding:9px;text-align:center;cursor:pointer;font-size:13px;font-weight:500;transition:all .15s;border:none;background:transparent;color:var(--text2)}
+.type-btn.ti{background:var(--green-light);color:var(--green)}
+.type-btn.te{background:var(--red-light);color:var(--red)}
+.modal-foot{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+
+@keyframes rowIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.row-new{animation:rowIn .2s ease}
+
+.color-picker-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.color-swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:border-color .1s}
+.color-swatch.selected{border-color:var(--text)}
+
+.balance-row{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);margin-top:6px;padding-top:8px;border-top:1px solid var(--border)}
+.balance-row .b-num{font-weight:600;color:var(--text);font-size:13px}
+.balance-row .b-num.neg{color:var(--red)}
+</style>
+</head>
+<body>
+
+<!-- Bottom / Side Nav -->
+<nav class="nav" id="mainNav">
+  <div class="nav-brand" id="navBrand" style="display:none">💳 Finance</div>
+  <button class="nav-item active" onclick="goPage('dashboard',this)" data-page="dashboard">
+    <span class="nav-icon">📊</span><span>Dashboard</span>
+  </button>
+  <button class="nav-item" onclick="goPage('transactions',this)" data-page="transactions">
+    <span class="nav-icon">📋</span><span>ธุรกรรม</span>
+  </button>
+  <button class="nav-item" onclick="goPage('banks',this)" data-page="banks">
+    <span class="nav-icon">🏦</span><span>จัดการบัญชี</span>
+  </button>
+</nav>
+
+<!-- ============ PAGE: DASHBOARD ============ -->
+<div class="page active" id="page-dashboard">
+  <div class="page-header">
+    <div class="page-title">📊 ภาพรวมการเงิน</div>
+    <button class="btn btn-primary" onclick="openTxModal()">+ เพิ่มรายการ</button>
+  </div>
+  <div class="stat-grid" id="summaryCards"></div>
+  <div class="bank-grid" id="bankOverview"></div>
+  <div class="section">
+    <div class="section-title">กราฟรายรับ-รายจ่าย</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <div class="chart-legend">
+        <span><span class="legend-dot" style="background:#10b981"></span>รายรับ</span>
+        <span><span class="legend-dot" style="background:#ef4444"></span>รายจ่าย</span>
+      </div>
+      <div class="chart-tabs">
+        <button class="chart-tab active" onclick="setChartMode('monthly',this)">รายเดือน</button>
+        <button class="chart-tab" onclick="setChartMode('category',this)">หมวดหมู่</button>
+      </div>
+    </div>
+    <div class="chart-container"><canvas id="mainChart" role="img" aria-label="กราฟสรุปรายรับรายจ่าย">ข้อมูลกราฟ</canvas></div>
+  </div>
+</div>
+
+<!-- ============ PAGE: TRANSACTIONS ============ -->
+<div class="page" id="page-transactions">
+  <div class="page-header">
+    <div class="page-title">📋 รายการธุรกรรม</div>
+    <button class="btn btn-primary" onclick="openTxModal()">+ เพิ่มรายการ</button>
+  </div>
+  <div class="section" style="margin-bottom:0">
+    <div class="filters">
+      <input type="text" id="search" placeholder="🔍 ค้นหา..." oninput="renderTable()">
+      <select id="fBank" onchange="renderTable()"></select>
+      <select id="fType" onchange="renderTable()">
+        <option value="">ทุกประเภท</option>
+        <option value="income">รายรับ</option>
+        <option value="expense">รายจ่าย</option>
+      </select>
+      <input type="month" id="fMonth" oninput="renderTable()">
+    </div>
+    <div class="scroll-x">
+      <table>
+        <thead><tr>
+          <th>วันที่</th><th>รายการ</th><th>ประเภท</th><th>บัญชี</th><th style="text-align:right">จำนวนเงิน</th><th>หมายเหตุ</th><th></th>
+        </tr></thead>
+        <tbody id="txBody"></tbody>
+      </table>
+    </div>
+    <div id="emptyMsg" class="empty" style="display:none">ไม่พบรายการที่ตรงกับเงื่อนไข</div>
+    <div id="txSummaryBar" style="display:none;padding:10px;border-top:1px solid var(--border);font-size:12px;color:var(--text2);display:flex;gap:16px;flex-wrap:wrap"></div>
+  </div>
+</div>
+
+<!-- ============ PAGE: BANKS ============ -->
+<div class="page" id="page-banks">
+  <div class="page-header">
+    <div class="page-title">🏦 จัดการบัญชีธนาคาร</div>
+    <button class="btn btn-primary" onclick="openBankModal()">+ เพิ่มบัญชี</button>
+  </div>
+
+  <div class="section">
+    <div class="section-title">ยอดรวมทุกบัญชี</div>
+    <div class="stat-grid" id="bankSummaryCards"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">รายการบัญชี</div>
+    <div class="bank-manage-list" id="bankList"></div>
+    <div id="bankEmpty" class="empty" style="display:none">ยังไม่มีบัญชี กด "+ เพิ่มบัญชี" เพื่อเริ่มต้น</div>
+  </div>
+</div>
+
+<!-- ============ MODAL: Transaction ============ -->
+<div class="overlay" id="txOverlay" style="display:none" onclick="if(event.target===this)closeTxModal()">
+  <div class="modal">
+    <div class="modal-head"><h3 id="txModalTitle">เพิ่มรายการใหม่</h3><button class="icon-btn" onclick="closeTxModal()">✕</button></div>
+    <div class="type-toggle">
+      <button class="type-btn ti" id="typeBtnI" onclick="setTxType('income')">+ รายรับ</button>
+      <button class="type-btn" id="typeBtnE" onclick="setTxType('expense')">− รายจ่าย</button>
+    </div>
+    <div class="form-grid">
+      <div class="fg"><label>วันที่</label><input type="date" id="tDate"></div>
+      <div class="fg"><label>บัญชี</label><select id="tBank"></select></div>
+      <div class="fg full"><label>รายการ</label><input type="text" id="tDesc" placeholder="ระบุรายการ..."></div>
+      <div class="fg"><label>จำนวนเงิน (บาท)</label><input type="number" id="tAmt" placeholder="0.00" min="0" step="0.01"></div>
+      <div class="fg"><label>หมวดหมู่</label><input type="text" id="tCat" placeholder="เช่น ค่าอาหาร"></div>
+      <div class="fg full"><label>หมายเหตุ</label><textarea id="tNote" placeholder="รายละเอียดเพิ่มเติม..."></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeTxModal()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveTx()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: Bank ============ -->
+<div class="overlay" id="bankOverlay" style="display:none" onclick="if(event.target===this)closeBankModal()">
+  <div class="modal">
+    <div class="modal-head"><h3 id="bankModalTitle">เพิ่มบัญชีธนาคาร</h3><button class="icon-btn" onclick="closeBankModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="fg full"><label>ชื่อบัญชี / ธนาคาร</label><input type="text" id="bName" placeholder="เช่น กสิกรไทย, เงินสด..."></div>
+      <div class="fg"><label>เลขบัญชี (ไม่บังคับ)</label><input type="text" id="bAcct" placeholder="xxx-x-xxxxx-x"></div>
+      <div class="fg"><label>ยอดเงินตั้งต้น (บาท)</label><input type="number" id="bInitial" placeholder="0.00" step="0.01"></div>
+      <div class="fg full">
+        <label>สีประจำบัญชี</label>
+        <div class="color-picker-row" id="colorPicker"></div>
+      </div>
+      <div class="fg full" id="bEditBalSection" style="display:none">
+        <div class="balance-row">
+          <span>ยอดคงเหลือปัจจุบัน (รวมธุรกรรม):</span>
+          <span class="b-num" id="bCurrentBal">฿0.00</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeBankModal()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveBank()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ DATA ============
+const PALETTE = ['#2563eb','#138f5f','#4f0a7b','#0066cc','#e67e22','#ef4444','#8b5cf6','#06b6d4','#ec4899','#64748b'];
+const SK_TX = 'fin_tx_v3';
+const SK_BANKS = 'fin_banks_v3';
+
+let entries = [];
+let banks = [];
+let editTxId = null;
+let editBankId = null;
+let txType = 'income';
+let chartMode = 'monthly';
+let mainChart = null;
+let selectedColor = PALETTE[0];
+
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function fmt(n){return new Intl.NumberFormat('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n)}
+function bankById(id){return banks.find(b=>b.id===id)||{name:id,color:'#94a3b8',initial:0}}
+
+function loadData(){
+  try{entries=JSON.parse(localStorage.getItem(SK_TX)||'[]')}catch{entries=[]}
+  try{banks=JSON.parse(localStorage.getItem(SK_BANKS)||'[]')}catch{banks=[]}
+}
+function saveData(){
+  localStorage.setItem(SK_TX,JSON.stringify(entries));
+  localStorage.setItem(SK_BANKS,JSON.stringify(banks));
+}
+
+// ============ COMPUTED ============
+function bankBalance(bankId){
+  const b = bankById(bankId);
+  const initial = b.initial || 0;
+  return entries.filter(e=>e.bank===bankId).reduce((s,e)=>s+(e.type==='income'?e.amount:-e.amount), initial);
+}
+function totalBalance(){return banks.reduce((s,b)=>s+bankBalance(b.id),0)}
+function totalIncome(){return entries.filter(e=>e.type==='income').reduce((s,e)=>s+e.amount,0)}
+function totalExpense(){return entries.filter(e=>e.type==='expense').reduce((s,e)=>s+e.amount,0)}
+
+// ============ NAV ============
+function goPage(page, btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(page==='dashboard'){renderDashboard()}
+  if(page==='transactions'){renderTable()}
+  if(page==='banks'){renderBanks()}
+}
+
+// ============ DASHBOARD ============
+function renderDashboard(){
+  const bal=totalBalance(), inc=totalIncome(), exp=totalExpense();
+  document.getElementById('summaryCards').innerHTML=`
+    <div class="stat-card"><div class="stat-label">ยอดคงเหลือรวม</div><div class="stat-val ${bal>=0?'green':'red'}">฿${fmt(bal)}</div><div class="stat-sub">จาก ${banks.length} บัญชี</div></div>
+    <div class="stat-card"><div class="stat-label">รายรับรวม</div><div class="stat-val green">฿${fmt(inc)}</div><div class="stat-sub">${entries.filter(e=>e.type==='income').length} รายการ</div></div>
+    <div class="stat-card"><div class="stat-label">รายจ่ายรวม</div><div class="stat-val red">฿${fmt(exp)}</div><div class="stat-sub">${entries.filter(e=>e.type==='expense').length} รายการ</div></div>
+    <div class="stat-card"><div class="stat-label">กำไร / ขาดทุน</div><div class="stat-val ${inc-exp>=0?'blue':'red'}">฿${fmt(inc-exp)}</div><div class="stat-sub">รายรับ − รายจ่าย</div></div>`;
+
+  document.getElementById('bankOverview').innerHTML=banks.map(b=>{
+    const bal=bankBalance(b.id);
+    const inc=entries.filter(e=>e.bank===b.id&&e.type==='income').reduce((s,e)=>s+e.amount,0);
+    const exp=entries.filter(e=>e.bank===b.id&&e.type==='expense').reduce((s,e)=>s+e.amount,0);
+    return`<div class="bank-overview" style="--bc:${b.color}">
+      <div class="bank-overview-name">${b.name}</div>
+      <div class="bank-overview-num">${b.acct||'ไม่ระบุเลขบัญชี'}</div>
+      <div class="bank-overview-bal ${bal<0?'neg':''}">฿${fmt(bal)}</div>
+      <div class="bank-overview-sub">
+        <span style="color:var(--green)">▲ ฿${fmt(inc)}</span>
+        <span style="color:var(--red)">▼ ฿${fmt(exp)}</span>
+        <span style="color:var(--text3)">ตั้งต้น ฿${fmt(b.initial||0)}</span>
+      </div>
+    </div>`;
+  }).join('')||'<div class="empty">ยังไม่มีบัญชี ไปที่ "จัดการบัญชี" เพื่อเพิ่ม</div>';
+
+  renderChart();
+}
+
+// ============ CHART ============
+function renderChart(){
+  const ctx=document.getElementById('mainChart');
+  if(!ctx)return;
+  if(mainChart){mainChart.destroy();mainChart=null}
+  const isDark=matchMedia('(prefers-color-scheme:dark)').matches;
+  const gc=isDark?'rgba(255,255,255,.07)':'rgba(0,0,0,.05)';
+  const tc=isDark?'#94a3b8':'#64748b';
+
+  if(chartMode==='monthly'){
+    const months={};
+    entries.forEach(e=>{
+      const m=e.date.slice(0,7);
+      if(!months[m])months[m]={inc:0,exp:0};
+      months[m][e.type==='income'?'inc':'exp']+=e.amount;
+    });
+    const keys=Object.keys(months).sort().slice(-6);
+    const thM=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    const labels=keys.map(k=>{const[y,m]=k.split('-');return`${thM[+m-1]} ${+y+543}`});
+    mainChart=new Chart(ctx,{type:'bar',data:{labels,datasets:[
+      {label:'รายรับ',data:keys.map(k=>Math.round(months[k]?.inc||0)),backgroundColor:'rgba(16,185,129,.75)',borderColor:'#10b981',borderWidth:1.5,borderRadius:5},
+      {label:'รายจ่าย',data:keys.map(k=>Math.round(months[k]?.exp||0)),backgroundColor:'rgba(239,68,68,.75)',borderColor:'#ef4444',borderWidth:1.5,borderRadius:5}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+      x:{grid:{color:gc},ticks:{color:tc,font:{size:11}}},
+      y:{grid:{color:gc},ticks:{color:tc,font:{size:11},callback:v=>'฿'+new Intl.NumberFormat('th').format(v)}}
+    }}});
+  } else {
+    const cats={};
+    entries.filter(e=>e.type==='expense').forEach(e=>{cats[e.cat||'อื่นๆ']=(cats[e.cat||'อื่นๆ']||0)+e.amount});
+    const keys=Object.keys(cats).sort((a,b)=>cats[b]-cats[a]).slice(0,8);
+    if(!keys.length)return;
+    const colors=['#2563eb','#10b981','#ef4444','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16'];
+    mainChart=new Chart(ctx,{type:'doughnut',data:{labels:keys,datasets:[{data:keys.map(k=>Math.round(cats[k])),backgroundColor:colors,borderWidth:2,borderColor:isDark?'#1e293b':'#fff'}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:tc,font:{size:11},boxWidth:11,padding:9}}}}});
+  }
+}
+function setChartMode(m,btn){chartMode=m;document.querySelectorAll('.chart-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderChart()}
+
+// ============ TRANSACTIONS TABLE ============
+function populateFilterBanks(){
+  const el=document.getElementById('fBank');
+  if(!el)return;
+  el.innerHTML='<option value="">ทุกบัญชี</option>'+banks.map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
+}
+function populateTxBankSelect(){
+  const el=document.getElementById('tBank');
+  if(!el)return;
+  el.innerHTML=banks.map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
+}
+
+function getFiltered(){
+  const q=(document.getElementById('search')?.value||'').toLowerCase();
+  const fb=document.getElementById('fBank')?.value||'';
+  const ft=document.getElementById('fType')?.value||'';
+  const fm=document.getElementById('fMonth')?.value||'';
+  return entries.filter(e=>{
+    if(q&&!e.desc.toLowerCase().includes(q)&&!(e.note||'').toLowerCase().includes(q)&&!(e.cat||'').toLowerCase().includes(q))return false;
+    if(fb&&e.bank!==fb)return false;
+    if(ft&&e.type!==ft)return false;
+    if(fm&&!e.date.startsWith(fm))return false;
+    return true;
+  }).sort((a,b)=>b.date.localeCompare(a.date));
+}
+
+function renderTable(){
+  populateFilterBanks();
+  const data=getFiltered();
+  const tbody=document.getElementById('txBody');
+  const empty=document.getElementById('emptyMsg');
+  const bar=document.getElementById('txSummaryBar');
+  if(!data.length){tbody.innerHTML='';empty.style.display='block';bar.style.display='none';return}
+  empty.style.display='none';
+  const sumInc=data.filter(e=>e.type==='income').reduce((s,e)=>s+e.amount,0);
+  const sumExp=data.filter(e=>e.type==='expense').reduce((s,e)=>s+e.amount,0);
+  bar.style.display='flex';
+  bar.innerHTML=`<span>${data.length} รายการ</span><span style="color:var(--green)">รายรับ ฿${fmt(sumInc)}</span><span style="color:var(--red)">รายจ่าย ฿${fmt(sumExp)}</span><span style="color:var(--blue)">สุทธิ ฿${fmt(sumInc-sumExp)}</span>`;
+  const b=bankById;
+  tbody.innerHTML=data.map(e=>`
+    <tr class="row-new">
+      <td style="white-space:nowrap;color:var(--text2)">${e.date}</td>
+      <td><div style="font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.desc}</div>${e.cat?`<span class="tag">${e.cat}</span>`:''}</td>
+      <td><span class="badge badge-${e.type}">${e.type==='income'?'รายรับ':'รายจ่าย'}</span></td>
+      <td><span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">
+        <span style="width:8px;height:8px;border-radius:50%;background:${b(e.bank).color};flex-shrink:0"></span>${b(e.bank).name}
+      </span></td>
+      <td style="text-align:right"><span class="amt-${e.type}">${e.type==='income'?'+':'-'}฿${fmt(e.amount)}</span></td>
+      <td style="color:var(--text2);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${e.note||''}">${e.note||'—'}</td>
+      <td><div class="action-btns">
+        <button class="icon-btn" onclick="openTxModal('${e.id}')" title="แก้ไข">✏️</button>
+        <button class="icon-btn del" onclick="deleteTx('${e.id}')" title="ลบ">🗑</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+// ============ TX MODAL ============
+function openTxModal(id){
+  editTxId=id||null;
+  const e=id?entries.find(x=>x.id===id):null;
+  document.getElementById('txModalTitle').textContent=id?'แก้ไขรายการ':'เพิ่มรายการใหม่';
+  populateTxBankSelect();
+  document.getElementById('tDate').value=e?e.date:new Date().toISOString().slice(0,10);
+  document.getElementById('tBank').value=e?e.bank:(banks[0]?.id||'');
+  document.getElementById('tDesc').value=e?e.desc:'';
+  document.getElementById('tAmt').value=e?e.amount:'';
+  document.getElementById('tCat').value=e?.cat||'';
+  document.getElementById('tNote').value=e?.note||'';
+  setTxType(e?e.type:'income');
+  document.getElementById('txOverlay').style.display='flex';
+  setTimeout(()=>document.getElementById('tDesc').focus(),80);
+}
+function closeTxModal(){document.getElementById('txOverlay').style.display='none';editTxId=null}
+function setTxType(t){
+  txType=t;
+  document.getElementById('typeBtnI').className='type-btn'+(t==='income'?' ti':'');
+  document.getElementById('typeBtnE').className='type-btn'+(t==='expense'?' te':'');
+}
+function saveTx(){
+  const date=document.getElementById('tDate').value;
+  const bank=document.getElementById('tBank').value;
+  const desc=document.getElementById('tDesc').value.trim();
+  const amt=parseFloat(document.getElementById('tAmt').value);
+  const cat=document.getElementById('tCat').value.trim();
+  const note=document.getElementById('tNote').value.trim();
+  if(!date||!desc||!bank||!amt||amt<=0){alert('กรุณากรอกข้อมูลให้ครบถ้วน');return}
+  if(editTxId){
+    const i=entries.findIndex(e=>e.id===editTxId);
+    if(i>-1)entries[i]={...entries[i],date,bank,desc,amount:amt,type:txType,cat,note};
+  } else {
+    entries.unshift({id:uid(),date,bank,desc,amount:amt,type:txType,cat,note});
+  }
+  saveData();
+  closeTxModal();
+  const cur=document.querySelector('.nav-item.active')?.dataset?.page;
+  if(cur==='dashboard')renderDashboard();
+  if(cur==='transactions')renderTable();
+  if(cur==='banks')renderBanks();
+}
+function deleteTx(id){
+  if(!confirm('ยืนยันการลบรายการนี้?'))return;
+  entries=entries.filter(e=>e.id!==id);
+  saveData();
+  renderTable();
+  renderDashboard();
+}
+
+// ============ BANKS PAGE ============
+function renderBanks(){
+  // summary
+  const tot=totalBalance(), inc=totalIncome(), exp=totalExpense();
+  document.getElementById('bankSummaryCards').innerHTML=`
+    <div class="stat-card"><div class="stat-label">ยอดรวมทุกบัญชี</div><div class="stat-val ${tot>=0?'green':'red'}">฿${fmt(tot)}</div></div>
+    <div class="stat-card"><div class="stat-label">ยอดตั้งต้นรวม</div><div class="stat-val blue">฿${fmt(banks.reduce((s,b)=>s+(b.initial||0),0))}</div></div>
+    <div class="stat-card"><div class="stat-label">จำนวนบัญชี</div><div class="stat-val blue">${banks.length} บัญชี</div></div>`;
+
+  const list=document.getElementById('bankList');
+  const empty=document.getElementById('bankEmpty');
+  if(!banks.length){list.innerHTML='';empty.style.display='block';return}
+  empty.style.display='none';
+  list.innerHTML=banks.map(b=>{
+    const bal=bankBalance(b.id);
+    const inc=entries.filter(e=>e.bank===b.id&&e.type==='income').reduce((s,e)=>s+e.amount,0);
+    const exp=entries.filter(e=>e.bank===b.id&&e.type==='expense').reduce((s,e)=>s+e.amount,0);
+    const cnt=entries.filter(e=>e.bank===b.id).length;
+    return`<div class="bank-row" style="--bc:${b.color}">
+      <div class="bank-dot" style="background:${b.color}">${b.name.slice(0,2)}</div>
+      <div class="bank-info">
+        <div class="bank-info-name">${b.name}</div>
+        <div class="bank-info-acct">${b.acct||'ไม่ระบุเลขบัญชี'} · ${cnt} รายการ</div>
+        <div class="bank-info-bal">
+          <span class="lbl">ตั้งต้น</span> <span class="num">฿${fmt(b.initial||0)}</span>
+          &nbsp;·&nbsp;
+          <span class="lbl">รายรับ</span> <span class="num" style="color:var(--green)">+฿${fmt(inc)}</span>
+          &nbsp;·&nbsp;
+          <span class="lbl">รายจ่าย</span> <span class="num" style="color:var(--red)">−฿${fmt(exp)}</span>
+          &nbsp;·&nbsp;
+          <span class="lbl">คงเหลือ</span> <span class="num ${bal<0?'neg':''}">฿${fmt(bal)}</span>
+        </div>
+      </div>
+      <div class="bank-actions">
+        <button class="icon-btn" onclick="openBankModal('${b.id}')" title="แก้ไข">✏️</button>
+        <button class="icon-btn del" onclick="deleteBank('${b.id}')" title="ลบ">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ============ BANK MODAL ============
+function buildColorPicker(sel){
+  document.getElementById('colorPicker').innerHTML=PALETTE.map(c=>`
+    <div class="color-swatch ${c===sel?'selected':''}" style="background:${c}" onclick="pickColor('${c}',this)" title="${c}"></div>`).join('');
+  selectedColor=sel;
+}
+function pickColor(c,el){
+  selectedColor=c;
+  document.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('selected'));
+  el.classList.add('selected');
+}
+function openBankModal(id){
+  editBankId=id||null;
+  const b=id?banks.find(x=>x.id===id):null;
+  document.getElementById('bankModalTitle').textContent=id?'แก้ไขบัญชี':'เพิ่มบัญชีธนาคาร';
+  document.getElementById('bName').value=b?b.name:'';
+  document.getElementById('bAcct').value=b?.acct||'';
+  document.getElementById('bInitial').value=b?(b.initial||0):'';
+  buildColorPicker(b?b.color:PALETTE[0]);
+  const sec=document.getElementById('bEditBalSection');
+  if(id){
+    sec.style.display='block';
+    const bal=bankBalance(id);
+    const el=document.getElementById('bCurrentBal');
+    el.textContent='฿'+fmt(bal);
+    el.className='b-num'+(bal<0?' neg':'');
+  } else {
+    sec.style.display='none';
+  }
+  document.getElementById('bankOverlay').style.display='flex';
+  setTimeout(()=>document.getElementById('bName').focus(),80);
+}
+function closeBankModal(){document.getElementById('bankOverlay').style.display='none';editBankId=null}
+function saveBank(){
+  const name=document.getElementById('bName').value.trim();
+  const acct=document.getElementById('bAcct').value.trim();
+  const initial=parseFloat(document.getElementById('bInitial').value)||0;
+  if(!name){alert('กรุณาระบุชื่อบัญชี');return}
+  if(editBankId){
+    const i=banks.findIndex(b=>b.id===editBankId);
+    if(i>-1)banks[i]={...banks[i],name,acct,initial,color:selectedColor};
+  } else {
+    banks.push({id:uid(),name,acct,initial,color:selectedColor});
+  }
+  saveData();
+  closeBankModal();
+  renderBanks();
+  populateFilterBanks();
+  populateTxBankSelect();
+}
+function deleteBank(id){
+  const cnt=entries.filter(e=>e.bank===id).length;
+  const msg=cnt?`บัญชีนี้มี ${cnt} รายการธุรกรรม\nการลบจะทำให้รายการเหล่านั้นสูญหาย\nยืนยันการลบ?`:'ยืนยันการลบบัญชีนี้?';
+  if(!confirm(msg))return;
+  banks=banks.filter(b=>b.id!==id);
+  saveData();
+  renderBanks();
+  populateFilterBanks();
+}
+
+// ============ SEED DATA ============
+function seedDefaults(){
+  const pad=n=>String(n).padStart(2,'0');
+  const d=(off)=>{const x=new Date();x.setDate(x.getDate()-off);return`${x.getFullYear()}-${pad(x.getMonth()+1)}-${pad(x.getDate())}`};
+  banks=[
+    {id:'kbank',name:'กสิกรไทย',acct:'123-4-56789-0',initial:50000,color:'#138f5f'},
+    {id:'scb',name:'ไทยพาณิชย์',acct:'456-7-89012-3',initial:20000,color:'#4f0a7b'},
+    {id:'ktb',name:'กรุงไทย',acct:'789-0-12345-6',initial:15000,color:'#0066cc'},
+    {id:'cash',name:'เงินสด',acct:'',initial:5000,color:'#e67e22'},
+  ];
+  entries=[
+    {id:uid(),date:d(0),bank:'kbank',desc:'เงินเดือน',amount:35000,type:'income',cat:'รายได้',note:''},
+    {id:uid(),date:d(1),bank:'cash',desc:'ค่าอาหารกลางวัน',amount:120,type:'expense',cat:'ค่าอาหาร',note:''},
+    {id:uid(),date:d(2),bank:'scb',desc:'ค่าน้ำ-ค่าไฟ',amount:1200,type:'expense',cat:'ค่าสาธารณูปโภค',note:'เดือนนี้'},
+    {id:uid(),date:d(5),bank:'ktb',desc:'โอนเงินจากลูกค้า',amount:15000,type:'income',cat:'งานฟรีแลนซ์',note:''},
+    {id:uid(),date:d(7),bank:'kbank',desc:'ค่าเช่าบ้าน',amount:8000,type:'expense',cat:'ที่พัก',note:''},
+    {id:uid(),date:d(10),bank:'cash',desc:'ค่าน้ำมัน',amount:800,type:'expense',cat:'เดินทาง',note:''},
+    {id:uid(),date:d(15),bank:'scb',desc:'ดอกเบี้ยเงินฝาก',amount:250,type:'income',cat:'ดอกเบี้ย',note:''},
+    {id:uid(),date:d(20),bank:'kbank',desc:'ค่าโทรศัพท์',amount:599,type:'expense',cat:'สื่อสาร',note:''},
+    {id:uid(),date:d(32),bank:'ktb',desc:'เงินเดือน',amount:35000,type:'income',cat:'รายได้',note:'เดือนที่แล้ว'},
+    {id:uid(),date:d(35),bank:'kbank',desc:'ค่าเช่าบ้าน',amount:8000,type:'expense',cat:'ที่พัก',note:'เดือนที่แล้ว'},
+    {id:uid(),date:d(38),bank:'cash',desc:'ค่าอาหาร',amount:3500,type:'expense',cat:'ค่าอาหาร',note:'เดือนที่แล้ว'},
+    {id:uid(),date:d(45),bank:'scb',desc:'งานโปรเจกต์',amount:20000,type:'income',cat:'งานฟรีแลนซ์',note:''},
+  ];
+  saveData();
+}
+
+// ============ DESKTOP NAV BRAND ============
+function initDesktopNav(){
+  if(window.innerWidth>=768){
+    document.getElementById('navBrand').style.display='flex';
+  }
+}
+
+// ============ INIT ============
+function init(){
+  loadData();
+  if(!banks.length&&!entries.length) seedDefaults();
+  populateFilterBanks();
+  populateTxBankSelect();
+  renderDashboard();
+  initDesktopNav();
+  window.addEventListener('resize',initDesktopNav);
+}
+init();
+</script>
+</body>
+</html>
