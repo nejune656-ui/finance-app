@@ -220,14 +220,31 @@ tr:hover td{background:var(--surface2)}
   </div>
   <div class="section" style="margin-bottom:0">
     <div class="filters">
-      <input type="text" id="search" placeholder="🔍 ค้นหา..." oninput="renderTable()">
+      <input type="text" id="search" placeholder="🔍 ค้นหา..." oninput="renderTable()" style="flex:2;min-width:140px">
       <select id="fBank" onchange="renderTable()"></select>
       <select id="fType" onchange="renderTable()">
         <option value="">ทุกประเภท</option>
         <option value="income">รายรับ</option>
         <option value="expense">รายจ่าย</option>
       </select>
-      <input type="month" id="fMonth" oninput="renderTable()">
+    </div>
+    <div class="filters" style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:200px">
+        <label style="font-size:12px;color:var(--text2);white-space:nowrap">ตั้งแต่</label>
+        <input type="date" id="fDateFrom" onchange="renderTable()" style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:13px">
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:200px">
+        <label style="font-size:12px;color:var(--text2);white-space:nowrap">ถึง</label>
+        <input type="date" id="fDateTo" onchange="renderTable()" style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:13px">
+      </div>
+      <select id="fMonth" onchange="applyMonthPreset(this.value)" style="min-width:130px;padding:7px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:13px">
+        <option value="">เลือกช่วงเวลา</option>
+        <option value="this_month">เดือนนี้</option>
+        <option value="last_month">เดือนที่แล้ว</option>
+        <option value="this_year">ปีนี้</option>
+        <option value="all">ทั้งหมด</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="clearDateFilter()">ล้างวันที่</button>
     </div>
     <div class="scroll-x">
       <table>
@@ -479,14 +496,46 @@ function getFiltered(){
   const q=(document.getElementById('search')?.value||'').toLowerCase();
   const fb=document.getElementById('fBank')?.value||'';
   const ft=document.getElementById('fType')?.value||'';
-  const fm=document.getElementById('fMonth')?.value||'';
+  const fd1=document.getElementById('fDateFrom')?.value||'';
+  const fd2=document.getElementById('fDateTo')?.value||'';
   return entries.filter(e=>{
     if(q&&!e.desc.toLowerCase().includes(q)&&!(e.note||'').toLowerCase().includes(q)&&!(e.cat||'').toLowerCase().includes(q))return false;
     if(fb&&e.bank!==fb)return false;
     if(ft&&e.type!==ft)return false;
-    if(fm&&!e.date.startsWith(fm))return false;
+    if(fd1&&e.date<fd1)return false;
+    if(fd2&&e.date>fd2)return false;
     return true;
   });
+}
+
+window.applyMonthPreset=function(val){
+  const now=new Date();
+  const pad=n=>String(n).padStart(2,'0');
+  const y=now.getFullYear(), m=now.getMonth();
+  if(val==='this_month'){
+    document.getElementById('fDateFrom').value=`${y}-${pad(m+1)}-01`;
+    const last=new Date(y,m+1,0);
+    document.getElementById('fDateTo').value=`${y}-${pad(m+1)}-${pad(last.getDate())}`;
+  } else if(val==='last_month'){
+    const lm=m===0?12:m, ly=m===0?y-1:y;
+    const last=new Date(ly,lm,0);
+    document.getElementById('fDateFrom').value=`${ly}-${pad(lm)}-01`;
+    document.getElementById('fDateTo').value=`${ly}-${pad(lm)}-${pad(last.getDate())}`;
+  } else if(val==='this_year'){
+    document.getElementById('fDateFrom').value=`${y}-01-01`;
+    document.getElementById('fDateTo').value=`${y}-12-31`;
+  } else {
+    document.getElementById('fDateFrom').value='';
+    document.getElementById('fDateTo').value='';
+  }
+  renderTable();
+}
+
+window.clearDateFilter=function(){
+  document.getElementById('fDateFrom').value='';
+  document.getElementById('fDateTo').value='';
+  document.getElementById('fMonth').value='';
+  renderTable();
 }
 
 function renderTable(){
