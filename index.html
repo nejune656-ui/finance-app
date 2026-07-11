@@ -553,7 +553,7 @@ window.clearDateFilter=function(){
   renderTable();
 }
 
-function renderTable(){
+window.renderTable=function renderTable(){
   populateFilterBanks();
   const data=getFiltered();
   const tbody=document.getElementById('txBody');
