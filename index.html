@@ -554,7 +554,11 @@ window.clearDateFilter=function(){
 }
 
 window.renderTable=function renderTable(){
+  // อัพเดท dropdown บัญชีเฉพาะเมื่อจำเป็น ไม่ให้ reset ค่าที่เลือก
+  const fBank=document.getElementById('fBank');
+  const prevBank=fBank?.value||'';
   populateFilterBanks();
+  if(prevBank&&fBank)fBank.value=prevBank;
   const data=getFiltered();
   const tbody=document.getElementById('txBody');
   const empty=document.getElementById('emptyMsg');
