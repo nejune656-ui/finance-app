@@ -500,10 +500,25 @@ function getFiltered(){
   const fd2=document.getElementById('fDateTo')?.value||'';
   return entries.filter(e=>{
     if(q&&!e.desc.toLowerCase().includes(q)&&!(e.note||'').toLowerCase().includes(q)&&!(e.cat||'').toLowerCase().includes(q))return false;
-    if(fb&&e.bank!==fb)return false;
+    // กรองบัญชี — เปรียบเทียบทั้ง bank id และ bank name
+    if(fb){
+      const selectedBank=banks.find(b=>b.id===fb);
+      const entryBank=banks.find(b=>b.id===e.bank);
+      // ถ้าหา bank จาก e.bank ได้ตรงกับที่เลือก
+      if(e.bank!==fb){
+        // fallback: ถ้า entryBank ไม่มี แสดงว่า bank ถูกลบ ให้ข้าม
+        return false;
+      }
+    }
     if(ft&&e.type!==ft)return false;
-    if(fd1&&e.date<fd1)return false;
-    if(fd2&&e.date>fd2)return false;
+    // กรองวันที่ — ถ้าใส่แค่ fd1 ไม่มี fd2 ให้กรองแค่วันเดียว
+    if(fd1&&fd2){
+      if(e.date<fd1||e.date>fd2)return false;
+    } else if(fd1){
+      if(e.date<fd1)return false;
+    } else if(fd2){
+      if(e.date>fd2)return false;
+    }
     return true;
   });
 }
