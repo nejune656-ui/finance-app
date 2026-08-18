@@ -216,7 +216,10 @@ tr:hover td{background:var(--surface2)}
 <div class="page" id="page-transactions">
   <div class="page-header">
     <div class="page-title">📋 รายการธุรกรรม</div>
-    <button class="btn btn-primary" onclick="openTxModal()">+ เพิ่มรายการ</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost" onclick="openExportModal()">📥 Export Excel</button>
+      <button class="btn btn-primary" onclick="openTxModal()">+ เพิ่มรายการ</button>
+    </div>
   </div>
   <div class="section" style="margin-bottom:0">
     <div class="filters">
@@ -722,6 +725,53 @@ window.deleteBank=async function(id){
   catch(err){showSync('ลบไม่สำเร็จ','error')}
 }
 
+// ============ EXPORT EXCEL ============
+window.openExportModal=function(){
+  const now=new Date();
+  const pad=n=>String(n).padStart(2,'0');
+  const y=now.getFullYear(),m=now.getMonth();
+  const last=new Date(y,m+1,0);
+  document.getElementById('exFrom').value=`${y}-${pad(m+1)}-01`;
+  document.getElementById('exTo').value=`${y}-${pad(m+1)}-${pad(last.getDate())}`;
+  document.getElementById('exBank').innerHTML='<option value="">ทุกบัญชี</option>'+banks.map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
+  document.getElementById('exType').value='';
+  document.getElementById('exportOverlay').style.display='flex';
+}
+window.closeExportModal=function(){document.getElementById('exportOverlay').style.display='none'}
+window.doExport=function(){
+  const from=document.getElementById('exFrom').value;
+  const to=document.getElementById('exTo').value;
+  const bk=document.getElementById('exBank').value;
+  const tp=document.getElementById('exType').value;
+  if(!from||!to){alert('กรุณาเลือกช่วงวันที่');return}
+  let data=entries.filter(e=>{
+    if(e.date<from||e.date>to)return false;
+    if(bk&&e.bank!==bk)return false;
+    if(tp&&e.type!==tp)return false;
+    return true;
+  }).sort((a,b)=>a.date.localeCompare(b.date));
+  if(!data.length){alert('ไม่พบรายการในช่วงที่เลือก');return}
+  const rows=[['วันที่','รายการ','ประเภท','บัญชี','จำนวนเงิน','หมวดหมู่','หมายเหตุ']];
+  data.forEach(e=>{
+    rows.push([e.date,e.desc,e.type==='income'?'รายรับ':'รายจ่าย',bankById(e.bank).name,e.type==='income'?e.amount:-e.amount,e.cat||'',e.note||'']);
+  });
+  const sumInc=data.filter(e=>e.type==='income').reduce((s,e)=>s+e.amount,0);
+  const sumExp=data.filter(e=>e.type==='expense').reduce((s,e)=>s+e.amount,0);
+  rows.push([]);
+  rows.push(['','','','รายรับรวม',sumInc,'','']);
+  rows.push(['','','','รายจ่ายรวม',-sumExp,'','']);
+  rows.push(['','','','คงเหลือ',sumInc-sumExp,'','']);
+  const bom='\uFEFF';
+  const csv=bom+rows.map(r=>r.map(v=>{const s=String(v===null||v===undefined?'':v);return s.includes(',')||s.includes('"')||s.includes('\n')?`"${s.replace(/"/g,'""')}"`  :s}).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`finance_${from}_${to}.csv`;a.click();
+  URL.revokeObjectURL(url);
+  closeExportModal();
+  showSync(`Export สำเร็จ ${data.length} รายการ`,'ok');
+}
+
 // ============ DESKTOP NAV ============
 function initDesktopNav(){
   document.getElementById('navBrand').style.display=window.innerWidth>=768?'flex':'none';
@@ -741,5 +791,31 @@ setTimeout(()=>{
 },8000);
 
 </script>
+
+<!-- MODAL: Export Excel -->
+<div class="overlay" id="exportOverlay" style="display:none" onclick="if(event.target===this)closeExportModal()">
+  <div class="modal">
+    <div class="modal-head"><h3>📥 Export Excel</h3><button class="icon-btn" onclick="closeExportModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="fg"><label>วันที่เริ่มต้น</label><input type="date" id="exFrom"></div>
+      <div class="fg"><label>วันที่สิ้นสุด</label><input type="date" id="exTo"></div>
+      <div class="fg"><label>บัญชี (ไม่บังคับ)</label><select id="exBank"><option value="">ทุกบัญชี</option></select></div>
+      <div class="fg"><label>ประเภท (ไม่บังคับ)</label>
+        <select id="exType">
+          <option value="">ทั้งหมด</option>
+          <option value="income">รายรับ</option>
+          <option value="expense">รายจ่าย</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:12px;padding:10px;background:var(--surface2);border-radius:var(--radius-sm);font-size:12px;color:var(--text2)">
+      💡 ไฟล์จะเป็น .csv เปิดได้กับ Excel และ Google Sheets รองรับภาษาไทย
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeExportModal()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="doExport()">📥 Download</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
